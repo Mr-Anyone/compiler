@@ -3,24 +3,20 @@
 #include <llvm/IR/DerivedTypes.h>
 #include "ast.h"
 
-llvm::Value* ASTBase::codegen(ContextHolder holder){
-    assert(false && "the base code gen has been called!");
-    return nullptr; 
-}
-
-void ASTBase::dump(){
+void StatementBase::dump(){
     std::cout << "not implemented" << std::endl;
     return;
 }
 
-FunctionDecl::FunctionDecl(std::vector<ASTBase*>&& expression, FunctionArgLists* arg_list, std::string&& name): 
-    ASTBase(), m_expressions(expression), m_arg_list(arg_list), m_name(name){
+FunctionDecl::FunctionDecl(std::vector<StatementBase*>&& expression, FunctionArgLists* arg_list, std::string&& name): 
+    StatementBase(), m_statements(expression), m_arg_list(arg_list), m_name(name){
 
-    }
+}
 
 FunctionArgLists::FunctionArgLists(std::vector<TypeInfo>&& args):
-    m_args(args){
-    }
+    m_args(args) {
+    
+}
 
 FunctionArgLists::ArgsIter FunctionArgLists::begin() const {
     return m_args.cbegin();
@@ -30,8 +26,36 @@ FunctionArgLists::ArgsIter FunctionArgLists::end() const {
     return m_args.cend();
 }
 
-llvm::Value* FunctionArgLists::codegen(ContextHolder holder){
-    return nullptr;
+void FunctionArgLists::codegen(ContextHolder holder){
+    // stack allocate space for parameters 
+    // create something like this: 
+    // %0 = alloc i32, align 4 
+    // store i32 %func_arg, i32* %0, align 4
+
+    for(int i = 0;i<m_args.size(); ++i){
+        llvm::Value* value =
+            holder->builder.CreateAlloca(llvm::Type::getInt32Ty(holder->context));
+
+        const std::string& name = m_args[i].name;
+        if(holder->symbol_table.find(name) == holder->symbol_table.end()){
+            std::cerr << "cannot find symobol exit early!"; 
+            std::exit(-1);
+        }
+
+        holder->builder.CreateStore(holder->symbol_table[name], value);
+    }
+
+}
+
+template<typename T>
+static bool trivialCodeGen(StatementBase* base, ContextHolder holder){
+    T* statement = nullptr;
+    if((statement = dynamic_cast<T*>(base))){
+        statement->codegen(holder);
+        return false;
+    }
+
+    return false;
 }
 
 llvm::Value* FunctionDecl::codegen(ContextHolder holder){
@@ -61,15 +85,32 @@ llvm::Value* FunctionDecl::codegen(ContextHolder holder){
         holder->symbol_table[name] = &arg;
     }
 
-    // generating code for something
-    m_arg_list->codegen(holder);
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(holder->context, "main", function);
+    holder->builder.SetInsertPoint(BB);
 
+    m_arg_list->codegen(holder);
+    // generate the code for the statements
+    for(auto* statement: m_statements){
+        // FIXME: this is really ugly!
+        if(trivialCodeGen<AssignmentStatement>(statement, holder)){
+
+        }else if(trivialCodeGen<ReturnStatement>(statement, holder)){
+
+        }else{
+            assert(false && "cannot code gen!");
+        }
+    }
+    
     return function;
 }
 
+void AssignmentStatement::codegen(ContextHolder holder){
+    // holder->builder.CreateLoad();
+}
+
 AssignmentStatement::AssignmentStatement(const std::string& name, long long value): 
-    ASTBase(), m_name(name), m_value(value) {
-    }
+    StatementBase(), m_name(name), m_value(value) {
+}
 
 const std::string& AssignmentStatement::getName(){
     return m_name;
@@ -81,23 +122,13 @@ long long AssignmentStatement::getValue(){
 }
 
 void FunctionDecl::dump(){
-    std::cout << "function name: " << m_name << std::endl;
-    std::cout << "args: " << m_arg_list << std::endl;
-    m_arg_list->dump();
-
-    std::cout << "dumping expressions:" << std::endl;
-
-    for(auto* exp: m_expressions){
-        exp->dump();
-    }
+    std::cout << "unimplemented!" << std::endl;
 }
 
 ReturnStatement::ReturnStatement(const std::string& name): 
-    ASTBase(), m_name(name), m_type(ReturnType::Identifier){
-    }
+    StatementBase(), m_name(name), m_type(ReturnType::Identifier){
+}
 
-llvm::Value* ReturnStatement::codegen(ContextHolder holder){
-    // holder->builder.CreateRet();
-
-    return nullptr;
+void ReturnStatement::codegen(ContextHolder holder){
+    holder->builder.CreateRet(holder->symbol_table[m_name]);
 }

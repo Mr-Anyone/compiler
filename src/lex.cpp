@@ -4,6 +4,8 @@
 #include <string> 
 #include "lex.h"
 
+using namespace lex;
+
 void Tokenizer::consume() {
     m_current_token = readOneToken();
 }

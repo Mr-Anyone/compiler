@@ -5,6 +5,7 @@ set(
     parser.cpp 
     context.cpp
     ast.cpp
+    symbol_table.cpp
 )
 
 add_executable(

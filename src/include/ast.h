@@ -9,11 +9,11 @@
 #include "llvm/IR/Function.h"
 
 #include "context.h"
-class ASTBase{
-public:
-    virtual llvm::Value* codegen(ContextHolder holder); 
-    virtual void dump();
 
+// for dynamic casting purposes
+class StatementBase{
+public:
+    virtual void dump();
 private:
 };
 
@@ -34,12 +34,12 @@ struct TypeInfo{
 // this makes codegen have non trivial behavior!
 // We are already expected a function declaration in the LLVM IR 
 // level already, so what is the point of this class?
-class FunctionArgLists : public ASTBase{
+class FunctionArgLists{
 public:
     using ArgsIter = std::vector<TypeInfo>::const_iterator;
 
     FunctionArgLists(std::vector<TypeInfo>&& args);
-    virtual llvm::Value* codegen(ContextHolder holder) override;
+    void codegen(ContextHolder holder);
 
     ArgsIter begin() const;
     ArgsIter end() const;
@@ -47,27 +47,27 @@ private:
     std::vector<TypeInfo> m_args;
 };
 
-class FunctionDecl : public ASTBase{
+class FunctionDecl : public StatementBase{
 public:
-    FunctionDecl(std::vector<ASTBase*>&& expression, FunctionArgLists* arg_list, std::string&& name);
+    FunctionDecl(std::vector<StatementBase*>&& statements, FunctionArgLists* arg_list, std::string&& name);
 
-    virtual llvm::Value* codegen(ContextHolder holder) override;
+    llvm::Value* codegen(ContextHolder holder);
     void dump() override; 
 private:
-    std::vector<ASTBase*> m_expressions;
+    std::vector<StatementBase*> m_statements;
     FunctionArgLists* m_arg_list;
     std::string m_name; 
 };
-
 
 //============================== Statements ==============================
 enum AssignmentType{
     Constant, 
 };
 
-class AssignmentStatement : public ASTBase{
+class AssignmentStatement : public StatementBase{
 public: 
     AssignmentStatement(const std::string& name, long long value) ;
+    void codegen(ContextHolder holder);
 
     const std::string& getName();
     long long getValue();
@@ -77,12 +77,12 @@ private:
     AssignmentType m_type = Constant;
 };
 
-class ReturnStatement : public ASTBase{
+class ReturnStatement : public StatementBase{
 public:
     // returning an identifier
     ReturnStatement(const std::string&name);
 
-    virtual llvm::Value* codegen(ContextHolder holder) override;
+    void codegen(ContextHolder holder);
 private: 
     enum ReturnType{
         Identifier,

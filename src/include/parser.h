@@ -12,20 +12,18 @@ public:
     Parser(const char* filename, ContextHolder context);
 
     // nullptr if failed
-    ASTBase* buildSyntaxTree();
+    StatementBase* buildSyntaxTree();
 private:
     // building the function decl
-    ASTBase* buildFunctionDecl();
-    ASTBase* buildFunctionArgList();
+    FunctionDecl* buildFunctionDecl();
+    FunctionArgLists* buildFunctionArgList();
 
-    ASTBase* buildAssignmentStatement();
-    ASTBase* buildReturnStatement();
-    ASTBase* buildStatement();
-
-    ASTBase* nextTokenOrError(TokenType expected_token, const char* message);
+    StatementBase* buildAssignmentStatement();
+    StatementBase* buildReturnStatement();
+    StatementBase* buildStatement();
 
     ContextHolder m_context;
-    Tokenizer m_tokenizer;
+    lex::Tokenizer m_tokenizer;
 };
 
 #endif
